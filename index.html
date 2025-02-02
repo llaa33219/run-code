@@ -18,6 +18,20 @@
     #output {
       margin-top: 20px;
     }
+    /* 입력 폼 스타일 */
+    #inputForm label {
+      font-weight: bold;
+    }
+    #inputForm textarea, 
+    #inputForm input {
+      width: 100%;
+      box-sizing: border-box;
+      margin-bottom: 10px;
+    }
+    #runButton {
+      padding: 8px 16px;
+      font-size: 16px;
+    }
   </style>
   <!-- React 라이브러리 (원본 그대로) -->
   <script src="https://unpkg.com/react/umd/react.development.js"></script>
@@ -34,6 +48,8 @@
   <script src="https://cdn.jsdelivr.net/npm/csharp-wasm-runner/dist/csharp-wasm-runner.min.js"></script>
   <!-- C 실행용 npm 라이브러리 (원본 그대로) -->
   <script src="https://cdn.jsdelivr.net/npm/c-wasm-runner/dist/c-wasm-runner.min.js"></script>
+  <!-- Marked.js for Markdown rendering (원본 그대로) -->
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 </head>
 <body>
   <h1>코드 실행 결과</h1>
@@ -41,17 +57,18 @@
   <script>
     (async function() {
       const outputDiv = document.getElementById("output");
+      let resultContainer = null; // 실행 결과를 출력할 컨테이너
 
-      // 헬퍼: 출력 영역에 텍스트 설정 (UTF‑8 보장)
-      function setOutputText(text) {
-        outputDiv.textContent = text;
+      // 헬퍼: 결과 영역에 텍스트를 설정 (UTF‑8 보장)
+      function setResultText(text) {
+        resultContainer.textContent = text;
       }
 
-      // 헬퍼: pre 태그를 생성하여 텍스트 추가 (UTF‑8 보장을 위해 textContent 사용)
-      function appendPre(text) {
+      // 헬퍼: pre 태그를 생성하여 결과 영역에 텍스트 추가 (UTF‑8 보장)
+      function appendToResult(text) {
          const pre = document.createElement("pre");
          pre.textContent = text;
-         outputDiv.appendChild(pre);
+         resultContainer.appendChild(pre);
       }
 
       // 헬퍼: Base64로 인코딩된 UTF‑8 문자열을 올바르게 디코딩
@@ -61,126 +78,105 @@
         }).join(''));
       }
 
-      // URL의 query string은 다음과 같이 되어야 합니다.
-      // ?= (base64로 인코딩된 코드):(코드에 맞는 프로그래밍 언어 이름)
-      if (!window.location.search.startsWith("?=")) {
-        setOutputText("잘못된 URL 형식입니다. URL은 '?=base64코드:언어' 형식이어야 합니다.");
-        return;
-      }
-      // "?=" 제거
-      let query = window.location.search.substring(2);
-      // base64 인코딩된 코드와 언어 구분자 ":"로 분리 (base64에는 ":"가 포함되지 않음)
-      let parts = query.split(":");
-      if (parts.length < 2) {
-         setOutputText("URL에 코드와 언어 정보가 필요합니다.");
-         return;
-      }
-      let encodedCode = parts[0];
-      let language = parts.slice(1).join(":"); // 혹시 언어명에 ":"가 포함되더라도 처리
-      let code;
-      try {
-         // 기존 atob 대신 UTF‑8 디코딩을 위한 헬퍼 함수 사용
-         code = decodeBase64UTF8(encodedCode);
-      } catch(e) {
-         setOutputText("Base64 디코딩에 실패했습니다.");
-         return;
-      }
-      language = language.toLowerCase().trim();
-      outputDiv.innerHTML = "";
-
-      // 각 언어별로 분기하여 실행 또는 시뮬레이션 처리
-      if (language === "html") {
-         // HTML: iframe에 코드를 기록하여 렌더링
-         const iframe = document.createElement("iframe");
-         iframe.style.width = "100%";
-         iframe.style.height = "500px";
-         outputDiv.appendChild(iframe);
-         const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
-         iframeDoc.open();
-         iframeDoc.write(code);
-         iframeDoc.close();
-
-      } else if (language === "react") {
-         // React: Babel로 JSX를 변환한 후 ReactDOM을 이용하여 렌더링
-         const reactContainer = document.createElement("div");
-         reactContainer.id = "react-root";
-         outputDiv.appendChild(reactContainer);
-         try {
-           const transpiled = Babel.transform(code, { presets: ['react'] }).code;
-           // 코드 실행 시 React element를 반환하는 코드라고 가정합니다.
-           const element = eval(transpiled);
-           ReactDOM.render(element, reactContainer);
-         } catch(e) {
-           appendPre("React 코드 실행 중 오류 발생:\n" + e);
-         }
-
-      } else if (language === "js") {
-         // JavaScript: eval로 실행하고 console.log 결과를 캡쳐하여 출력
-         const jsOutput = document.createElement("pre");
-         let capturedOutput = "";
-         const originalLog = console.log;
-         console.log = function(...args) {
-           capturedOutput += args.join(" ") + "\n";
-           originalLog.apply(console, args);
-         };
-         try {
-           let result = eval(code);
-           if (result !== undefined) {
-             capturedOutput += result;
-           }
-         } catch(e) {
-           capturedOutput += e;
-         }
-         console.log = originalLog;
-         jsOutput.textContent = capturedOutput;
-         outputDiv.appendChild(jsOutput);
-
-      } else if (language === "ts") {
-         // TypeScript: transpile하여 JavaScript로 변환 후 eval 실행 (console.log 캡쳐)
-         const tsOutput = document.createElement("pre");
-         let capturedOutput = "";
-         const originalLog = console.log;
-         console.log = function(...args) {
-           capturedOutput += args.join(" ") + "\n";
-           originalLog.apply(console, args);
-         };
-         try {
-           const transpiled = ts.transpile(code);
-           let result = eval(transpiled);
-           if (result !== undefined) {
-             capturedOutput += result;
-           }
-         } catch(e) {
-           capturedOutput += e;
-         }
-         console.log = originalLog;
-         tsOutput.textContent = capturedOutput;
-         outputDiv.appendChild(tsOutput);
-
-      } else if (language === "css") {
-         // CSS: style 태그에 코드를 넣고, 관련 태그들을 생성하여 스타일 적용 확인
-         const styleTag = document.createElement("style");
-         styleTag.textContent = code;
-         document.head.appendChild(styleTag);
-         const cssContainer = document.createElement("div");
-         cssContainer.innerHTML = `
-           <button class="btn">Button</button>
-           <input class="input" placeholder="Input">
-           <a href="#" class="link">Link</a>
-           <div class="box" style="padding:10px; margin-top:10px;">Box</div>
-         `;
-         outputDiv.appendChild(cssContainer);
-
-      } else if (language === "python") {
-         // Python: Pyodide를 이용하여 실행하고 터미널 느낌의 출력 제공
-         appendPre("Pyodide 로딩 중...");
-         try {
-           if (!window.pyodide) {
-             window.pyodide = await loadPyodide();
-           }
-           // 코드 내에 백틱(`) 문자가 있을 수 있으므로 이스케이프 처리
-           const escapedCode = code.replace(/\\/g, "\\\\").replace(/`/g, "\\`");
-           const pythonWrapper = `
+      // async 함수: 언어와 코드를 받아 실행하는 함수
+      async function executeCode(language, code) {
+        // 실행 전 결과 영역 초기화
+        resultContainer.innerHTML = "";
+        language = language.toLowerCase().trim();
+        if (language === "html") {
+          // HTML: iframe에 코드를 기록하여 렌더링
+          const iframe = document.createElement("iframe");
+          iframe.style.width = "100%";
+          iframe.style.height = "500px";
+          resultContainer.appendChild(iframe);
+          const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+          iframeDoc.open();
+          iframeDoc.write(code);
+          iframeDoc.close();
+        } else if (language === "react") {
+          // React: Babel로 JSX를 변환한 후 ReactDOM을 이용하여 렌더링
+          const reactContainer = document.createElement("div");
+          reactContainer.id = "react-root";
+          resultContainer.appendChild(reactContainer);
+          try {
+            const transpiled = Babel.transform(code, { presets: ['react'] }).code;
+            const element = eval(transpiled);
+            ReactDOM.render(element, reactContainer);
+          } catch(e) {
+            appendToResult("React 코드 실행 중 오류 발생:\n" + e);
+          }
+        } else if (language === "js") {
+          // JavaScript: eval로 실행하고 console.log 결과를 캡쳐하여 출력
+          const jsOutput = document.createElement("pre");
+          let capturedOutput = "";
+          const originalLog = console.log;
+          console.log = function(...args) {
+            capturedOutput += args.join(" ") + "\n";
+            originalLog.apply(console, args);
+          };
+          try {
+            let result = eval(code);
+            if (result !== undefined) {
+              capturedOutput += result;
+            }
+          } catch(e) {
+            capturedOutput += e;
+          }
+          console.log = originalLog;
+          jsOutput.textContent = capturedOutput;
+          resultContainer.appendChild(jsOutput);
+        } else if (language === "ts") {
+          // TypeScript: transpile하여 JavaScript로 변환 후 eval 실행 (console.log 캡쳐)
+          const tsOutput = document.createElement("pre");
+          let capturedOutput = "";
+          const originalLog = console.log;
+          console.log = function(...args) {
+            capturedOutput += args.join(" ") + "\n";
+            originalLog.apply(console, args);
+          };
+          try {
+            const transpiled = ts.transpile(code);
+            let result = eval(transpiled);
+            if (result !== undefined) {
+              capturedOutput += result;
+            }
+          } catch(e) {
+            capturedOutput += e;
+          }
+          console.log = originalLog;
+          tsOutput.textContent = capturedOutput;
+          resultContainer.appendChild(tsOutput);
+        } else if (language === "css") {
+          // CSS: style 태그에 코드를 넣고, 관련 태그들을 생성하여 스타일 적용 확인
+          const styleTag = document.createElement("style");
+          styleTag.textContent = code;
+          document.head.appendChild(styleTag);
+          const cssContainer = document.createElement("div");
+          cssContainer.innerHTML = `
+            <button class="btn">Button</button>
+            <input class="input" placeholder="Input">
+            <a href="#" class="link">Link</a>
+            <div class="box" style="padding:10px; margin-top:10px;">Box</div>
+          `;
+          resultContainer.appendChild(cssContainer);
+        } else if (language === "markdown" || language === "md") {
+          // Markdown: marked.js를 이용하여 Markdown을 HTML로 변환 후 출력
+          try {
+            const html = marked.parse(code);
+            resultContainer.innerHTML = html;
+          } catch(e) {
+            appendToResult("Markdown 변환 중 오류 발생:\n" + e);
+          }
+        } else if (language === "python") {
+          // Python: Pyodide를 이용하여 실행하고 터미널 느낌의 출력 제공
+          appendToResult("Pyodide 로딩 중...");
+          try {
+            if (!window.pyodide) {
+              window.pyodide = await loadPyodide();
+            }
+            // 코드 내 백틱(`) 문자 이스케이프
+            const escapedCode = code.replace(/\\/g, "\\\\").replace(/`/g, "\\`");
+            const pythonWrapper = `
 # -*- coding: utf-8 -*-
 import sys
 import io
@@ -191,49 +187,91 @@ try:
 except Exception as e:
     print(e)
 _output.getvalue()
-           `;
-           const pyResult = await window.pyodide.runPythonAsync(pythonWrapper);
-           outputDiv.innerHTML = "";
-           appendPre(pyResult);
-         } catch(e) {
-           outputDiv.innerHTML = "";
-           appendPre("Python 코드 실행 중 오류 발생:\n" + e);
-         }
+            `;
+            const pyResult = await window.pyodide.runPythonAsync(pythonWrapper);
+            resultContainer.innerHTML = "";
+            appendToResult(pyResult);
+          } catch(e) {
+            resultContainer.innerHTML = "";
+            appendToResult("Python 코드 실행 중 오류 발생:\n" + e);
+          }
+        } else if (language === "c++") {
+          // C++: npm 라이브러리 cpp-wasm-runner를 이용하여 브라우저에서 실행
+          appendToResult("C++ 컴파일러 로딩 중...");
+          try {
+            let output = await compileAndRunCpp(code);
+            resultContainer.innerHTML = "";
+            appendToResult(output);
+          } catch(e) {
+            appendToResult("C++ 코드 실행 중 오류 발생:\n" + e);
+          }
+        } else if (language === "c#") {
+          // C#: npm 라이브러리 csharp-wasm-runner를 이용하여 브라우저에서 실행
+          appendToResult("C# 컴파일러 로딩 중...");
+          try {
+            let output = await compileAndRunCSharp(code);
+            resultContainer.innerHTML = "";
+            appendToResult(output);
+          } catch(e) {
+            appendToResult("C# 코드 실행 중 오류 발생:\n" + e);
+          }
+        } else if (language === "c") {
+          // C: npm 라이브러리 c-wasm-runner를 이용하여 브라우저에서 실행
+          appendToResult("C 컴파일러 로딩 중...");
+          try {
+            let output = await compileAndRunC(code);
+            resultContainer.innerHTML = "";
+            appendToResult(output);
+          } catch(e) {
+            appendToResult("C 코드 실행 중 오류 발생:\n" + e);
+          }
+        } else if (["rust", "어셈블리", "go"].includes(language)) {
+          appendToResult(`${language.toUpperCase()} 코드는 브라우저에서 실행이 지원되지 않습니다.`);
+        } else {
+          appendToResult("지원되지 않는 언어입니다: " + language);
+        }
+      }
 
-      } else if (language === "c++") {
-         // C++: npm 라이브러리 cpp-wasm-runner를 이용하여 브라우저에서 실행
-         appendPre("C++ 컴파일러 로딩 중...");
-         try {
-           let output = await compileAndRunCpp(code);
-           outputDiv.innerHTML = "";
-           appendPre(output);
-         } catch(e) {
-           appendPre("C++ 코드 실행 중 오류 발생:\n" + e);
-         }
-      } else if (language === "c#") {
-         // C#: npm 라이브러리 csharp-wasm-runner를 이용하여 브라우저에서 실행
-         appendPre("C# 컴파일러 로딩 중...");
-         try {
-           let output = await compileAndRunCSharp(code);
-           outputDiv.innerHTML = "";
-           appendPre(output);
-         } catch(e) {
-           appendPre("C# 코드 실행 중 오류 발생:\n" + e);
-         }
-      } else if (language === "c") {
-         // C: npm 라이브러리 c-wasm-runner를 이용하여 브라우저에서 실행
-         appendPre("C 컴파일러 로딩 중...");
-         try {
-           let output = await compileAndRunC(code);
-           outputDiv.innerHTML = "";
-           appendPre(output);
-         } catch(e) {
-           appendPre("C 코드 실행 중 오류 발생:\n" + e);
-         }
-      } else if (["rust", "어셈블리", "go"].includes(language)) {
-         appendPre(`${language.toUpperCase()} 코드는 브라우저에서 실행이 지원되지 않습니다.`);
+      // URL에 쿼리스트링이 "?="로 시작하면 해당 코드를 실행,
+      // 그렇지 않으면 입력 폼을 표시하여 사용자가 직접 코드를 입력하도록 함.
+      if (window.location.search.startsWith("?=")) {
+        // URL 쿼리스트링으로부터 코드와 언어 정보를 가져옴
+        let query = window.location.search.substring(2);
+        let parts = query.split(":");
+        if (parts.length < 2) {
+          setResultText("URL에 코드와 언어 정보가 필요합니다.");
+          return;
+        }
+        let encodedCode = parts[0];
+        let language = parts.slice(1).join(":");
+        let code;
+        try {
+          code = decodeBase64UTF8(encodedCode);
+        } catch(e) {
+          setResultText("Base64 디코딩에 실패했습니다.");
+          return;
+        }
+        resultContainer = outputDiv; // 결과 영역으로 전체 outputDiv 사용
+        await executeCode(language, code);
       } else {
-         appendPre("지원되지 않는 언어입니다: " + language);
+        // 입력 폼 UI 표시
+        outputDiv.innerHTML = `
+          <div id="inputForm" style="margin-bottom:20px;">
+            <label for="codeInput">코드:</label><br>
+            <textarea id="codeInput" rows="10" placeholder="여기에 코드를 입력하세요."></textarea><br>
+            <label for="languageInput">언어:</label><br>
+            <input id="languageInput" type="text" placeholder="예: python, js, html, markdown 등"><br><br>
+            <button id="runButton">실행</button>
+          </div>
+          <div id="result"></div>
+        `;
+        resultContainer = document.getElementById("result");
+        document.getElementById("runButton").addEventListener("click", async function() {
+          const code = document.getElementById("codeInput").value;
+          const language = document.getElementById("languageInput").value;
+          resultContainer.innerHTML = ""; // 이전 실행 결과 초기화
+          await executeCode(language, code);
+        });
       }
     })();
   </script>
