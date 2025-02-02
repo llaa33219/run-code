@@ -41,9 +41,9 @@
     }
   </style>
 
-  <!-- React 라이브러리 (원본 그대로, 반드시 먼저 로드) -->
+  <!-- React 라이브러리 (원본 그대로) -->
   <script src="https://unpkg.com/react/umd/react.development.js"></script>
-  <!-- ReactDOM 라이브러리 (원본 그대로, React 다음에 로드) -->
+  <!-- ReactDOM 라이브러리 (원본 그대로) -->
   <script src="https://unpkg.com/react-dom/umd/react-dom.development.js"></script>
 
   <!-- Babel (React JSX 변환용, 원본 그대로) -->
@@ -130,19 +130,22 @@
           iframeDoc.close();
 
         } else if (language === "react") {
-          // React 실행
+          // 여기서 Babel을 통해 import 구문을 UMD로 변환해 오류 제거
           const reactContainer = document.createElement("div");
           reactContainer.id = "react-root";
           reactContainer.style.width = "100%";
           reactContainer.style.height = "100%";
           resultContainer.appendChild(reactContainer);
           try {
-            // 필요시 'env' 프리셋 추가 가능
             const transpiled = Babel.transform(code, {
-              presets: ["react"]
+              presets: [
+                // ES Module -> UMD 변환
+                ["env", { modules: "umd" }],
+                "react"
+              ]
             }).code;
+
             const element = eval(transpiled);
-            // 여기서 ReactDOM이 없으면 에러 발생
             ReactDOM.render(element, reactContainer);
           } catch(e) {
             appendToResult("React 코드 실행 중 오류 발생:\n" + e);
