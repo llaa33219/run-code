@@ -57,8 +57,8 @@
   <script src="https://cdn.jsdelivr.net/npm/c-wasm-runner/dist/c-wasm-runner.min.js"></script>
   <!-- Marked.js for Markdown rendering (원본 그대로) -->
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-  <!-- Ruby (Opal) -->
-  <script src="https://cdn.jsdelivr.net/npm/opal-runtime/opal.js"></script>
+  <!-- Ruby (Opal): 버전을 명시적으로 지정 -->
+  <script src="https://cdn.jsdelivr.net/npm/opal-runtime@1.3.0/opal.min.js"></script>
   <!-- Lua (Fengari) -->
   <script src="https://unpkg.com/fengari-web/dist/fengari-web.js"></script>
 </head>
@@ -91,9 +91,9 @@
 
       // 헬퍼: pre 태그를 생성하여 결과 영역에 텍스트 추가 (UTF‑8 보장)
       function appendToResult(text) {
-        const pre = document.createElement("pre");
-        pre.textContent = text;
-        resultContainer.appendChild(pre);
+         const pre = document.createElement("pre");
+         pre.textContent = text;
+         resultContainer.appendChild(pre);
       }
 
       // 헬퍼: Base64로 인코딩된 UTF‑8 문자열을 올바르게 디코딩
@@ -315,7 +315,7 @@ _output.getvalue()
         } else if (language === "ruby") {
           try {
             let output = "";
-            if (Opal && Opal.gvars) {
+            if (typeof Opal !== 'undefined' && Opal.gvars) {
               Opal.gvars.stdout = {
                 write: function(str) { output += str; }
               };
