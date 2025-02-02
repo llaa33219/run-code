@@ -56,6 +56,16 @@
   <div id="output"></div>
   <script>
     (async function() {
+      // 만약 compileAndRunC 함수가 정의되어 있지 않다면, compileAndRunCpp를 대체로 사용
+      if (typeof compileAndRunC !== 'function') {
+        window.compileAndRunC = async function(code) {
+          if (typeof compileAndRunCpp === 'function') {
+            return await compileAndRunCpp(code);
+          }
+          throw new Error("C runner is not implemented.");
+        };
+      }
+
       const outputDiv = document.getElementById("output");
       let resultContainer = null; // 실행 결과를 출력할 컨테이너
 
@@ -78,7 +88,7 @@
         }).join(''));
       }
       
-      // 헬퍼: UTF‑8 문자열을 Base64로 인코딩 (unescape는 사용하지 않는 방식)
+      // 헬퍼: UTF‑8 문자열을 Base64로 인코딩
       function encodeBase64UTF8(str) {
         return btoa(encodeURIComponent(str).replace(/%([0-9A-F]{2})/g, function(match, p1) {
           return String.fromCharCode(parseInt(p1, 16));
