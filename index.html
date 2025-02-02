@@ -330,21 +330,24 @@ _output.getvalue()
             const L = fengari.lauxlib.luaL_newstate();
             fengari.lualib.luaL_openlibs(L);
             let luaOutput = "";
-            // 사용자 정의 print 함수 (출력을 캡쳐)
+            // print 함수 재정의: 표준 라이브러리 print를 JS 함수로 덮어써서 출력을 캡쳐함
             fengari.lua.lua_pushjsfunction(L, function(L) {
               let n = fengari.lua.lua_gettop(L);
               let strs = [];
               for (let i = 1; i <= n; i++) {
-                strs.push(fengari.to_jsstring(fengari.lua.lua_tolstring(L, i)));
+                if (fengari.lua.lua_isnil(L, i)) {
+                  strs.push("nil");
+                } else {
+                  strs.push(fengari.to_jsstring(fengari.lua.lua_tolstring(L, i)));
+                }
               }
               luaOutput += strs.join(" ") + "\n";
               return 0;
             });
             fengari.lua.lua_setglobal(L, fengari.to_luastring("print"));
-            // io 라이브러리 지원: io.write와 io.read 재정의
+            // io 라이브러리 재정의: io.write와 io.read 재정의
             fengari.lua.lua_getglobal(L, fengari.to_luastring("io"));
             if (fengari.lua.lua_istable(L, -1)) {
-              // io.write 재정의 (줄바꿈 없이 출력)
               fengari.lua.lua_pushjsfunction(L, function(L) {
                 let n = fengari.lua.lua_gettop(L);
                 let args = [];
@@ -355,7 +358,6 @@ _output.getvalue()
                 return 0;
               });
               fengari.lua.lua_setfield(L, -2, fengari.to_luastring("write"));
-              // io.read 재정의 (빈 문자열 반환)
               fengari.lua.lua_pushjsfunction(L, function(L) {
                 fengari.lua.lua_pushstring(L, fengari.to_luastring(""));
                 return 1;
@@ -363,6 +365,14 @@ _output.getvalue()
               fengari.lua.lua_setfield(L, -2, fengari.to_luastring("read"));
             }
             fengari.lua.lua_pop(L, 1);
+            // os.exit 재정의: 종료하지 않고 무시
+            fengari.lua.lua_getglobal(L, fengari.to_luastring("os"));
+            if (fengari.lua.lua_istable(L, -1)) {
+              fengari.lua.lua_pushjsfunction(L, function(L) { return 0; });
+              fengari.lua.lua_setfield(L, -2, fengari.to_luastring("exit"));
+            }
+            fengari.lua.lua_pop(L, 1);
+            // Fengari의 luaL_dostring을 통해 Lua 코드를 실행
             let status = fengari.lauxlib.luaL_dostring(L, fengari.to_luastring(code));
             if (status === fengari.lua.LUA_OK) {
               appendToResult(luaOutput);
