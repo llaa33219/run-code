@@ -44,7 +44,7 @@
   <script src="https://unpkg.com/react/umd/react.development.js"></script>
   <script src="https://unpkg.com/react-dom/umd/react-dom.development.js"></script>
   <!-- Babel (React JSX 변환용, 원본 그대로) -->
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.20.2/babel.min.js"></script>
   <!-- TypeScript 컴파일러 (원본 그대로) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/typescript/4.9.5/typescript.min.js"></script>
   <!-- Pyodide (Python 실행용, 원본 그대로) -->
@@ -131,13 +131,15 @@
           reactContainer.style.height = "100%";
           resultContainer.appendChild(reactContainer);
           try {
-            // -- 여기를 수정합니다 (import 구문 에러 방지) --
-            const transpiled = Babel.transform(code, { 
-              // 기존: { presets: ['react'] }
-              presets: ['env', 'react'],    // 'env' 프리셋 추가
-              plugins: ['transform-es2015-modules-commonjs'] 
-              // 또는 ['transform-modules-commonjs'] / ['transform-modules-umd'] 등
+            // 여기서 Babel 옵션을 변경해줍니다.
+            const transpiled = Babel.transform(code, {
+              // Babel 7에서 ES Module -> CommonJS 로 변환: preset-env의 modules 옵션 사용
+              presets: [
+                ["env", { modules: "commonjs" }], 
+                "react"
+              ]
             }).code;
+            // 이후 그대로 실행
             const element = eval(transpiled);
             ReactDOM.render(element, reactContainer);
           } catch(e) {
