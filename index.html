@@ -131,15 +131,13 @@
           reactContainer.style.height = "100%";
           resultContainer.appendChild(reactContainer);
           try {
-            // 여기서 Babel 옵션을 변경해줍니다.
+            // 여기서 Babel 옵션을 UMD로 설정 (exports 없이도 동작)
             const transpiled = Babel.transform(code, {
-              // Babel 7에서 ES Module -> CommonJS 로 변환: preset-env의 modules 옵션 사용
               presets: [
-                ["env", { modules: "commonjs" }], 
+                ["env", { modules: "umd" }], 
                 "react"
               ]
             }).code;
-            // 이후 그대로 실행
             const element = eval(transpiled);
             ReactDOM.render(element, reactContainer);
           } catch(e) {
