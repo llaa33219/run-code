@@ -2,6 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
   <title>코드 실행 결과</title>
   <style>
     body {
@@ -41,17 +42,30 @@
     (async function() {
       // URL의 query string은 다음과 같이 되어야 합니다.
       // ?= (base64로 인코딩된 코드):(코드에 맞는 프로그래밍 언어 이름)
-      let query = window.location.search;
-      if (!query.startsWith("?=")) {
-        document.getElementById("output").innerText = "잘못된 URL 형식입니다. URL은 '?=base64코드:언어' 형식이어야 합니다.";
+      const outputDiv = document.getElementById("output");
+      
+      // 헬퍼: 출력 영역에 텍스트 설정
+      function setOutputText(text) {
+        outputDiv.textContent = text;
+      }
+      
+      // 헬퍼: pre 태그를 생성하여 텍스트 추가 (출력 시 UTF-8 보장을 위해 textContent 사용)
+      function appendPre(text) {
+         const pre = document.createElement("pre");
+         pre.textContent = text;
+         outputDiv.appendChild(pre);
+      }
+      
+      if (!window.location.search.startsWith("?=")) {
+        setOutputText("잘못된 URL 형식입니다. URL은 '?=base64코드:언어' 형식이어야 합니다.");
         return;
       }
       // "?=" 제거
-      query = query.substring(2);
+      let query = window.location.search.substring(2);
       // base64 인코딩된 코드와 언어 구분자 ":"로 분리 (base64에는 ":"가 포함되지 않음)
       let parts = query.split(":");
       if (parts.length < 2) {
-         document.getElementById("output").innerText = "URL에 코드와 언어 정보가 필요합니다.";
+         setOutputText("URL에 코드와 언어 정보가 필요합니다.");
          return;
       }
       let encodedCode = parts[0];
@@ -60,20 +74,10 @@
       try {
          code = atob(encodedCode);
       } catch(e) {
-         document.getElementById("output").innerText = "Base64 디코딩에 실패했습니다.";
+         setOutputText("Base64 디코딩에 실패했습니다.");
          return;
       }
       language = language.toLowerCase().trim();
-      
-      const outputDiv = document.getElementById("output");
-      outputDiv.innerHTML = "";
-      
-      // 출력에 사용되는 헬퍼 함수
-      function appendPre(text) {
-         const pre = document.createElement("pre");
-         pre.innerText = text;
-         outputDiv.appendChild(pre);
-      }
       
       // 각 언어별로 분기하여 실행 또는 시뮬레이션 처리
       if (language === "html") {
@@ -119,7 +123,7 @@
            capturedOutput += e;
          }
          console.log = originalLog;
-         jsOutput.innerText = capturedOutput;
+         jsOutput.textContent = capturedOutput;
          outputDiv.appendChild(jsOutput);
          
       } else if (language === "ts") {
@@ -141,13 +145,13 @@
            capturedOutput += e;
          }
          console.log = originalLog;
-         tsOutput.innerText = capturedOutput;
+         tsOutput.textContent = capturedOutput;
          outputDiv.appendChild(tsOutput);
          
       } else if (language === "css") {
          // CSS: style 태그에 코드를 넣고, 관련 태그들을 생성하여 스타일 적용 확인
          const styleTag = document.createElement("style");
-         styleTag.innerText = code;
+         styleTag.textContent = code;
          document.head.appendChild(styleTag);
          const cssContainer = document.createElement("div");
          cssContainer.innerHTML = `
@@ -168,6 +172,7 @@
            // 코드 내에 백틱(`) 문자가 있을 수 있으므로 이스케이프 처리
            const escapedCode = code.replace(/\\/g, "\\\\").replace(/`/g, "\\`");
            const pythonWrapper = `
+# -*- coding: utf-8 -*-
 import sys
 import io
 _output = io.StringIO()
