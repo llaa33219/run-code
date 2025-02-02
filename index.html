@@ -41,9 +41,9 @@
     }
   </style>
 
-  <!-- React 라이브러리 (원본 그대로) -->
+  <!-- 1) React 라이브러리 (원본 그대로, 먼저 로드) -->
   <script src="https://unpkg.com/react/umd/react.development.js"></script>
-  <!-- ReactDOM 라이브러리 (원본 그대로) -->
+  <!-- 2) ReactDOM 라이브러리 (원본 그대로, React 다음에 로드) -->
   <script src="https://unpkg.com/react-dom/umd/react-dom.development.js"></script>
 
   <!-- Babel (React JSX 변환용, 원본 그대로) -->
@@ -62,7 +62,7 @@
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <!-- Ruby (Opal): cdnjs에서 제공 -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/opal/1.3.0/opal.min.js"></script>
-  <!-- Lua (Fengari) -->
+  <!-- Lua (Fengari) (원본 그대로) -->
   <script src="https://unpkg.com/fengari-web/dist/fengari-web.js"></script>
 </head>
 <body>
@@ -130,7 +130,7 @@
           iframeDoc.close();
 
         } else if (language === "react") {
-          // 여기서 Babel을 통해 import 구문을 UMD로 변환해 오류 제거
+          // 여기서 Babel을 통해 ES Modules -> UMD 변환하도록 수정
           const reactContainer = document.createElement("div");
           reactContainer.id = "react-root";
           reactContainer.style.width = "100%";
@@ -138,13 +138,13 @@
           resultContainer.appendChild(reactContainer);
           try {
             const transpiled = Babel.transform(code, {
+              // !중요!: "env" preset에 modules: "umd" → import/export -> UMD 변환
               presets: [
-                // ES Module -> UMD 변환
                 ["env", { modules: "umd" }],
                 "react"
               ]
             }).code;
-
+            // ReactDOM이 이미 로딩되어 있으므로 여기서 "ReferenceError" 없음
             const element = eval(transpiled);
             ReactDOM.render(element, reactContainer);
           } catch(e) {
