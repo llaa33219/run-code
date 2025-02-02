@@ -77,6 +77,13 @@
           return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
         }).join(''));
       }
+      
+      // 헬퍼: UTF‑8 문자열을 Base64로 인코딩 (unescape는 사용하지 않는 방식)
+      function encodeBase64UTF8(str) {
+        return btoa(encodeURIComponent(str).replace(/%([0-9A-F]{2})/g, function(match, p1) {
+          return String.fromCharCode(parseInt(p1, 16));
+        }));
+      }
 
       // async 함수: 언어와 코드를 받아 실행하는 함수
       async function executeCode(language, code) {
@@ -239,7 +246,7 @@ _output.getvalue()
         let query = window.location.search.substring(2);
         let parts = query.split(":");
         if (parts.length < 2) {
-          setResultText("URL에 코드와 언어 정보가 필요합니다.");
+          outputDiv.textContent = "URL에 코드와 언어 정보가 필요합니다.";
           return;
         }
         let encodedCode = parts[0];
@@ -248,7 +255,7 @@ _output.getvalue()
         try {
           code = decodeBase64UTF8(encodedCode);
         } catch(e) {
-          setResultText("Base64 디코딩에 실패했습니다.");
+          outputDiv.textContent = "Base64 디코딩에 실패했습니다.";
           return;
         }
         resultContainer = outputDiv; // 결과 영역으로 전체 outputDiv 사용
@@ -266,11 +273,15 @@ _output.getvalue()
           <div id="result"></div>
         `;
         resultContainer = document.getElementById("result");
-        document.getElementById("runButton").addEventListener("click", async function() {
+        document.getElementById("runButton").addEventListener("click", function() {
           const code = document.getElementById("codeInput").value;
           const language = document.getElementById("languageInput").value;
-          resultContainer.innerHTML = ""; // 이전 실행 결과 초기화
-          await executeCode(language, code);
+          // 입력된 코드를 UTF‑8로 Base64 인코딩
+          let encodedCode = encodeBase64UTF8(code);
+          // 형식에 맞는 URL: ?=인코딩된코드:언어
+          let newUrl = window.location.origin + window.location.pathname + "?=" + encodedCode + ":" + language;
+          // 해당 URL로 이동
+          window.location.href = newUrl;
         });
       }
     })();
